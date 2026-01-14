@@ -6,10 +6,6 @@ ImageT is a lightweight and modular Go microservice for high-performance image p
 
 ## Core Idea
 
-ImageT provides a fast and reliable backend service for handling image transformation tasks at scale.
-
-### Key ideas:
-
 - Concurrent job execution using a worker pool
 - Redis for job metadata and status tracking
 - ImageKit for storing and delivering processed images
