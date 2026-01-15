@@ -20,6 +20,10 @@ This architecture allows ImageT to handle multiple image jobs efficiently while 
 - **Data Store:** Redis
 - **Image Storage:** ImageKit
 
+## Architecture
+
+![Architecture](docs/architecture.png)
+
 ## Project Structure
 
 - `cmd/api/` – Application entrypoint
