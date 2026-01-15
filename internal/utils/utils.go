@@ -1,8 +1,15 @@
 package utils
 
 import (
+	"context"
 	"fmt"
+	"image"
+	"log"
+	"net/http"
+	"net/url"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ramdhankumar1425/imaget/internal/model"
@@ -99,4 +106,42 @@ func GetFileExtension(format string) (string, error) {
 	default:
 		return "", fmt.Errorf("invalid file extension")
 	}
+}
+
+func DownloadAndDecodeImage(ctx context.Context, url string) (image.Image, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, "", err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("download failed: %s", resp.Status)
+	}
+
+	img, format, err := image.Decode(resp.Body)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return img, format, nil
+}
+
+func IsValidImageKitRawURL(s string) bool {
+	u, err := url.ParseRequestURI(s)
+	if err != nil {
+		return false
+	}
+
+	prefix := os.Getenv("IMAGEKIT_URL_PREFIX")
+	if prefix == "" {
+		log.Fatal("IMAGEKIT_URL_PREFIX env not set")
+	}
+
+	return strings.HasPrefix(u.String(), prefix)
 }

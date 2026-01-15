@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"image"
 	"log"
 	"time"
 
@@ -17,77 +16,66 @@ import (
 )
 
 func HandleTransform(c *gin.Context) {
-	log.Println("Handling job...")
 	ctx := c.Request.Context()
 
 	jobType := c.PostForm("type")
-	fileHeader, err := c.FormFile("file")
-	if err != nil {
-		c.JSON(400, gin.H{"error": "file not provided"})
+	if jobType == "" {
+		log.Println("transform type not provided")
+		c.JSON(400, gin.H{"error": "transform type not provided"})
 		return
 	}
 
-	file, err := fileHeader.Open()
-	if err != nil {
-		c.JSON(500, gin.H{"error": "cannot open file"})
-		return
-	}
-	defer file.Close()
-
-	img, format, err := image.Decode(file)
-	if err != nil {
-		c.JSON(400, gin.H{"error": "invalid image"})
+	fileUrl := c.PostForm("fileUrl")
+	if !utils.IsValidImageKitRawURL(fileUrl) {
+		log.Println("invalid file url")
+		c.JSON(400, gin.H{"error": "invalid file url"})
 		return
 	}
 
 	jobParams, err := utils.GetJobParams(c, jobType)
 	if err != nil {
+		log.Println("invalid job params")
 		c.JSON(400, gin.H{"error": err.Error()})
+		return
 	}
 
-	fileExt, err := utils.GetFileExtension(format)
-	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-	}
-
-	jobMeta := model.JobMeta{
+	job := model.Job{
 		ID:          uuid.NewString(),
 		Status:      "pending",
 		Type:        jobType,
-		FileSizeMB:  (float64(fileHeader.Size) / 1024) / 1024,
-		FileType:    format,
-		FileExt:     fileExt,
+		RawURL:      fileUrl,
 		ResultURL:   "",
 		Error:       "",
+		Params:      jobParams,
 		QueuedAt:    time.Now().Unix(),
 		StartedAt:   0,
 		CompletedAt: 0,
 	}
 
-	job := model.Job{
-		Meta:   jobMeta,
-		Image:  img,
-		Params: jobParams,
+	if err := infra.RDB.HSet(ctx, "job:"+job.ID, map[string]any{
+		"id":          job.ID,
+		"status":      job.Status,
+		"type":        job.Type,
+		"rawUrl":      job.RawURL,
+		"resultUrl":   job.ResultURL,
+		"error":       job.Error,
+		"queuedAt":    job.QueuedAt,
+		"startedAt":   job.StartedAt,
+		"completedAt": job.CompletedAt,
+	}).Err(); err != nil {
+		c.JSON(500, gin.H{"error": "internal error"})
+		return
 	}
 
-	infra.RDB.HSet(ctx, "job:"+jobMeta.ID, map[string]any{
-		"id":          jobMeta.ID,
-		"status":      jobMeta.Status,
-		"type":        jobMeta.Type,
-		"fileSizeMb":  jobMeta.FileSizeMB,
-		"fileType":    jobMeta.FileType,
-		"fileExt":     fileExt,
-		"resultUrl":   jobMeta.ResultURL,
-		"error":       jobMeta.Error,
-		"queuedAt":    jobMeta.QueuedAt,
-		"startedAt":   jobMeta.StartedAt,
-		"completedAt": jobMeta.CompletedAt,
-	})
-
-	worker.Jobs <- job
-
-	log.Println("Job queued, returning response")
-	c.JSON(200, gin.H{"jobId": jobMeta.ID})
+	select {
+	case worker.Jobs <- job:
+		log.Println("Job queued, returning response")
+		c.JSON(200, gin.H{"jobId": job.ID})
+	default:
+		log.Println("server is busy")
+		c.JSON(429, gin.H{"error": "server is busy"})
+		return
+	}
 }
 
 func HandleGetResult(c *gin.Context) {
@@ -104,9 +92,7 @@ func HandleGetResult(c *gin.Context) {
 		"id":          data["id"],
 		"status":      data["status"],
 		"type":        data["type"],
-		"fileSizeMb":  data["fileSizeMb"],
-		"fileType":    data["fileType"],
-		"fileExt":     data["fileExt"],
+		"rawUrl":      data["rawUrl"],
 		"resultUrl":   data["resultUrl"],
 		"error":       data["error"],
 		"queuedAt":    data["queuedAt"],

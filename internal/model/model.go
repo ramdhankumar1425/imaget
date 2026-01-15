@@ -1,23 +1,16 @@
 package model
 
-import "image"
+type Job struct {
+	ID        string
+	Status    string
+	Type      string
+	RawURL    string
+	ResultURL string
+	Error     string
 
-type JobMeta struct {
-	ID          string
-	Status      string
-	Type        string
-	FileSizeMB  float64
-	FileType    string
-	FileExt     string
-	ResultURL   string
-	Error       string
+	Params TransformParams
+
 	QueuedAt    int64
 	StartedAt   int64
 	CompletedAt int64
-}
-
-type Job struct {
-	Meta   JobMeta
-	Image  image.Image
-	Params TransformParams
 }

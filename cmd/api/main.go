@@ -21,6 +21,9 @@ func main() {
 	infra.InitImageKit()
 	worker.InitPool()
 
+	if os.Getenv("ENV") == "prod" {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	r := gin.Default()
 
 	r.POST("/transform", handler.HandleTransform)
