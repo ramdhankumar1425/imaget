@@ -34,12 +34,6 @@ This architecture allows ImageT to handle multiple image jobs efficiently while 
 - `internal/utils/` – Utility functions
 - `internal/worker/` – Worker pool and job execution
 
-## Features
-
-- RESTful API for submitting and tracking image transformation jobs
-- Worker pool for concurrent image processing
-- Redis-backed job tracking for reliability and scalability
-
 ## Local Setup
 
 ### Prerequisites
